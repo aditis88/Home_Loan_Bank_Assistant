@@ -1,0 +1,50 @@
+# Python / FastAPI
+my_env/
+__pycache__/
+*.pyc
+.env
+.env.example
+*.log
+backend/venv/
+Lib/site-packages/
+Include/
+# Node / React
+node_modules/
+frontend/node_modules/
+build/
+dist/
+.DS_Store
+npm-debug.log*
+yarn-error.log
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+__pycache__/
+*.pyc
+.DS_Store
+*.log
+
+# Batch files
+*.bat
+
+# Additional Python ignores
+*.pyo
+*.pyd
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Development files
+*.bak
+*.swp
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# Jupyter notebook extensions
+share/
