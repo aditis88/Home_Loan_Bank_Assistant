@@ -10,6 +10,7 @@ import ApplicationForm from './components/ApplicationForm';
 import DocumentUpload from './components/DocumentUpload';
 import Results from './components/Results';
 import DocumentsPage from './components/DocumentsPage';
+import RawResults from './components/RawResults';
 import { useAppStore } from './store/appStore';
 
 // Create professional banking theme
@@ -119,6 +120,8 @@ function App() {
         return <DocumentUpload />;
       case 'results':
         return <Results />;
+      case 'rawResults':
+        return <RawResults />;
       case 'docs':
         return <DocumentsPage />;
       default:

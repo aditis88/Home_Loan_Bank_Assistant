@@ -82,6 +82,7 @@ def run_orchestrator_workflow(form_data: dict, document_paths: dict):
         orchestrator = HomeLoanOrchestrator()
         
         try:
+            print("applicant_dataxxxxx",applicant_data,"document_paths",document_paths)
             result = orchestrator.run_workflow(applicant_data, document_paths)
             return result
         except Exception as e:
@@ -433,7 +434,7 @@ def render_document_upload(token: str, s3_manager: S3ApplicationManager):
             return
         
         # Use the exact S3 paths we got from upload_document()
-        print(form_data)
+       
         result = run_orchestrator_workflow(form_data, uploaded_files)
         st.session_state.workflow_result = result
         st.session_state.current_view = "results"

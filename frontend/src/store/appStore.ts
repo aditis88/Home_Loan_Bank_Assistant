@@ -48,8 +48,8 @@ interface ApplicationData {
 
 interface AppState {
   // Navigation
-  currentView: 'home' | 'chat' | 'application' | 'upload' | 'results' | 'docs';
-  setCurrentView: (view: 'home' | 'chat' | 'application' | 'upload' | 'results' | 'docs') => void;
+  currentView: 'home' | 'chat' | 'application' | 'upload' | 'results' | 'docs' | 'rawResults';
+  setCurrentView: (view: 'home' | 'chat' | 'application' | 'upload' | 'results' | 'docs' | 'rawResults') => void;
   
   // Chat
   chatHistory: ChatMessage[];
@@ -65,7 +65,7 @@ interface AppState {
   
   // Application
   applicationData: Partial<ApplicationData>;
-  current_application_id: string | null;
+  currentApplicationId: string | null;
   setCurrentApplicationId: (id: string | null) => void;
   setApplicationData: (data: Partial<ApplicationData>) => void;
   applications: Record<string, ApplicationData>;
@@ -97,6 +97,10 @@ interface AppState {
   // Loading states
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
+  
+  // Processing result
+  processingResult: any;
+  setProcessingResult: (result: any) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -123,8 +127,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   // Application
   applicationData: {},
-  current_application_id: null,
-  setCurrentApplicationId: (id) => set({ current_application_id: id }),
+  currentApplicationId: null,
+  setCurrentApplicationId: (id) => set({ currentApplicationId: id }),
   setApplicationData: (data) => set((state) => ({
     applicationData: { ...state.applicationData, ...data }
   })),
@@ -160,4 +164,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Loading states
   isLoading: false,
   setIsLoading: (loading) => set({ isLoading: loading }),
+  
+  // Processing result
+  processingResult: null,
+  setProcessingResult: (result) => set({ processingResult: result }),
 }));

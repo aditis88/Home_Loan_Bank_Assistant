@@ -99,6 +99,7 @@ class HomeLoanOrchestrator:
     def _run_document_validator(self, state: WorkflowState) -> Dict[str, Any]:
         try:
             documents = [{"type": t, "path": p} for t, p in state["document_paths"].items()]
+            print("in_orchestration",documents,state["applicant_data"])
             result = self.document_validator.validate_documents(
                 {"documents": documents, "details": state["applicant_data"]}
             )

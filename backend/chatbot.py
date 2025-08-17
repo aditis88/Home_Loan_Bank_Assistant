@@ -179,7 +179,7 @@ Current date: {current_date}""".format(current_date=datetime.now().strftime("%Y-
                     # First check if we've already asked about existing customer status
                         if "is_existing_customer" not in st.session_state:
                             st.session_state.show_existing_customer_question = True
-                            return "Are you an existing customer? (Please select below)"
+                            return "Are you an existing customer?. If you are a existing customer, please enter your application token."
                         else:
                             # If we know they're existing, show update button
                             if st.session_state.is_existing_customer:

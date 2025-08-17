@@ -23,8 +23,7 @@ const requiredDocuments = [
 ];
 
 const DocumentUpload: React.FC = () => {
-  const { sessionId } = useAppStore();
-  const [currentApplicationId, setCurrentApplicationId] = useState<string | null>(null);
+  const { sessionId, currentApplicationId, setProcessingResult, setCurrentView, setCurrentApplicationId } = useAppStore();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,10 +109,13 @@ const DocumentUpload: React.FC = () => {
   };
 
   const handleDelete = async (file_id: string) => {
+    console.log("Delete initiated with file_id:", file_id, "currentApplicationId:", currentApplicationId);
     if (!currentApplicationId) return;
     try {
       setLoading(true);
+      console.log("Calling delete API with:", {file_id, applicationId: currentApplicationId});
       await deleteDocument(file_id, currentApplicationId);
+      console.log("Delete successful, refreshing document list");
       setSuccess('Document deleted successfully');
       const updatedDocs = await listDocuments(currentApplicationId);
       setDocuments(updatedDocs);
@@ -126,6 +128,41 @@ const DocumentUpload: React.FC = () => {
 
   const isDocumentUploaded = (docName: string) => {
     return documents.some(doc => doc.name.includes(docName));
+  };
+
+  const allRequiredUploaded = () => {
+    return requiredDocuments
+      .filter(doc => doc.required)
+      .every(doc => isDocumentUploaded(doc.name));
+  };
+
+  const handleProcessApplication = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const formData = new FormData();
+      formData.append('session_id', sessionId);
+      
+      const response = await axios.post(
+        `/api/application/${currentApplicationId}/process`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      
+      // Update store with results and navigate
+      setProcessingResult(response.data.result);
+      setCurrentView('results');
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        setError('Failed to process application: ' + (err.response?.data?.message || err.message));
+      } else if (err instanceof Error) {
+        setError('Failed to process application: ' + err.message);
+      } else {
+        setError('Failed to process application');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!currentApplicationId) {
@@ -212,13 +249,18 @@ const DocumentUpload: React.FC = () => {
             </Typography>
             {documents.length > 0 ? (
               <List>
-                {documents.map((doc) => (
+                {documents.map((doc) =>
+                 (
                   <ListItem
                     key={doc.file_id}
+                    
                     secondaryAction={
                       <IconButton 
                         edge="end" 
-                        onClick={() => handleDelete(doc.file_id)}
+                        onClick={() => {
+                          console.log("Deleting document with ID:", doc.file_id, "Full doc:", doc);
+                          handleDelete(doc.file_id);
+                        }}
                         disabled={loading}
                       >
                         <DeleteIcon />
@@ -247,6 +289,22 @@ const DocumentUpload: React.FC = () => {
               </Typography>
             )}
           </Paper>
+        </Grid>
+
+        <Grid item xs={12}>
+          {allRequiredUploaded() && (
+            <Box sx={{ mt: 3, textAlign: 'center' }}>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={handleProcessApplication}
+                disabled={loading}
+                startIcon={loading ? <CircularProgress size={20} /> : null}
+              >
+                {loading ? 'Processing...' : 'Process My Application'}
+              </Button>
+            </Box>
+          )}
         </Grid>
       </Grid>
     </Box>

@@ -61,7 +61,7 @@ class ApplicationForm(BaseModel):
     job_title: str
     employment_duration_years: int
     employment_duration_months: int
-    annual_income: float
+    monthly_income: float
     additional_income: float
     
     '''# Financial Information
@@ -104,6 +104,7 @@ class DocumentResponse(BaseModel):
 
 # In-memory storage for session data (replace with Redis in production)
 sessions = {}
+
 
 @app.get("/")
 async def root():
@@ -158,7 +159,7 @@ async def chat_endpoint(chat_data: ChatMessage):
         
         # Get response from chatbot
         response = chatbot.get_response(chat_data.message, session["chat_history"])
-        
+        print("response 56776567876",response)
         # Add assistant response to history
         session["chat_history"].append({
             "role": "assistant",
@@ -188,7 +189,11 @@ async def chat_endpoint(chat_data: ChatMessage):
         )
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Chat error - Session: {chat_data.session_id if 'chat_data' in locals() else 'N/A'}")
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error details: {str(e)}")
+        print(f"Traceback: {e.__traceback__}")
+        raise HTTPException(500, "Failed to process chat message")
 
 @app.get("/api/chat/history/{session_id}")
 async def get_chat_history(session_id: str):
@@ -211,6 +216,12 @@ async def get_chat_history(session_id: str):
         "show_update_button": session.get("show_update_button", False),
         "show_cancel_button": session.get("show_cancel_button", False)
     }
+
+@app.get("/api/session/{session_id}")
+async def get_session(session_id: str):
+    if session_id not in sessions:
+        raise HTTPException(404, "Session not found")
+    return sessions[session_id]
 
 @app.get('/api/session/{session_id}')
 async def get_session_data(session_id: str):
@@ -338,42 +349,100 @@ async def upload_document(
 @app.get("/api/documents/{token}")
 async def list_documents(token: str):
     try:
-        # In a real app, you'd query your database here
-        # This example uses the session storage
-        for session in sessions.values():
-            if "documents" in session:
-                return {
-                    "documents": [
-                        doc for doc in session["documents"].values() 
-                        if doc["s3_path"].contains(token)
-                    ]
-                }
-        return {"documents": []}
+        # Get documents from S3 for this application token
+        documents = s3_manager.list_documents(token)
+        return {"documents": documents}
     except Exception as e:
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, f"Failed to list documents: {str(e)}")
 
 @app.delete("/api/documents/{file_id}")
 async def delete_document(
-    file_id: str,
-    session_id: str = Query(...)
+    file_id: str,  # Format: {token}_{doc_type}.ext (e.g. HL1755006612900_company.jpg)
+    session_id: str = Query(..., description="The application token ID")
 ):
     """Delete a document"""
+    print(f"Delete request - full_filename: {file_id}, token_id: {session_id}")
     try:
-        if session_id not in sessions or not sessions[session_id].get("current_application_id"):
-            raise HTTPException(400, "No active application found")
-        
-        application_id = sessions[session_id]["current_application_id"]
-        
-        # Delete from S3 and session
-        s3_manager.delete_document(application_id, file_id)
-        if "documents" in sessions[session_id] and file_id in sessions[session_id]["documents"]:
-            del sessions[session_id]["documents"][file_id]
-        
-        return {"success": True}
+        # Verify the file_id starts with the session_id (token)
+        if not file_id.startswith(session_id):
+            raise HTTPException(400, "File does not belong to this application")
+            
+        print(f"Deleting document {file_id} for token {session_id}")
+        s3_manager.delete_document(file_id,session_id)
+        return {"status": "success"}
     except Exception as e:
-        raise HTTPException(500, str(e))
+        print(f"Delete failed: {str(e)}")
+        raise HTTPException(500, f"Failed to delete document: {str(e)}")
 
+@app.post("/api/application/{application_id}/process")
+async def process_application(
+    application_id: str,
+    session_id: str = Form(...)
+):
+    """Process application with step-by-step workflow"""
+    try:
+        print(f"Processing application {application_id} for session {session_id}")
+        # 1. Validate application exists
+        application_form = s3_manager.get_application(application_id)
+        if not application_form:
+            raise HTTPException(404, "Application form not found")
+            
+        # 2. Get and validate documents
+        documents = s3_manager.list_documents(application_id)
+        if len(documents) < 4:  # PAN, Aadhaar, CompanyID, Payslip
+            raise HTTPException(400, "Please upload all required documents first")
+            
+        # Transform documents into required format
+        document_paths = {
+            doc['name'].split('.')[0]: doc['s3_path'] 
+            for doc in documents
+        }
         
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+        # 3. Prepare data for orchestrator
+        applicant_data = {
+            "applicant_name": application_form.get("full_name"),
+            "loan_amount": float(application_form.get("required_loan_amount", 0)),
+            "monthly_income": float(application_form.get("monthly_income", 0)),
+            "employment_status": application_form.get("employment_status"),
+            "company_name": application_form.get("company_name"),
+            "property_value": application_form.get("property_value"),
+            "property_details": {
+                "size_sqft": float(application_form.get("property_size_sqft", 0)),
+                "property_type": application_form.get("property_type"),
+                "city": application_form.get("property_location_city"),
+                "area": application_form.get("property_location_area"),
+                "age_years": int(application_form.get("property_age_years", 0)),
+                "condition": application_form.get("property_condition")
+            },
+            "pan_number": application_form.get("pan_number"),
+            "aadhar_number": application_form.get("aadhar_number")
+        }
+        print("data#$%$#%%",applicant_data,document_paths)
+        # 4. Run orchestrator workflow
+        result = orchestrator.run_workflow(applicant_data, document_paths)
+        
+        # 5. Update session and return results
+        if session_id in sessions:
+            sessions[session_id]["application_status"] = "processed"
+            sessions[session_id]["processing_result"] = result
+            
+        return {
+            "success": True,
+            "message": "Application processed successfully",
+            "result": result
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"Failed to process application: {str(e)}")
+
+@app.get('/api/application/{application_id}/results')
+async def get_application_results(application_id: str, session_id: str = Query(..., description="The application token ID")):
+    """Return raw JSON results for an application"""
+    try:
+        if not sessions.get(session_id, {}).get('processing_result'):
+            raise HTTPException(404, 'No results found for this application')
+        return sessions[session_id]['processing_result']
+    except Exception as e:
+        raise HTTPException(500, f'Failed to fetch results: {str(e)}')

@@ -74,7 +74,7 @@ class DocumentValidatorAgent:
         Returns standardized response structure
         """
         print('Hi',application_data)
-        logging.info(application_data)
+      
     
         if "documents" not in application_data or not application_data["documents"]:
             return {

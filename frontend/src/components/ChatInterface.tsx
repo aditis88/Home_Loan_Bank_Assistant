@@ -20,6 +20,7 @@ import {
   SmartToy as BotIcon,
   Description as FormIcon,
   CloudUpload as UploadIcon,
+  Close as CloseIcon,
   AccountBalance as BankIcon,
   Support as SupportIcon,
   Phone as PhoneIcon,
@@ -49,6 +50,10 @@ const ChatInterface: React.FC = () => {
   const [expectingToken, setExpectingToken] = useState(false);
   const [initialOptionsUsed, setInitialOptionsUsed] = useState(false);
   const [shouldShowOptions, setShouldShowOptions] = useState(false);
+  const [dismissedButtons, setDismissedButtons] = React.useState({
+    upload: false,
+    newCustomer: false
+  });
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -226,41 +231,30 @@ const ChatInterface: React.FC = () => {
               {/* Action Buttons */}
               {chatHistory.length > 0 &&
                 chatHistory[chatHistory.length - 1].role === 'assistant' &&
-                chatHistory[chatHistory.length - 1].content.includes('Are you an existing customer?') &&
+                chatHistory[chatHistory.length - 1].content.includes('Are you an existing customer?.') &&
                 !initialOptionsUsed && (
-                <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Button
                     variant="contained"
-                    size="large"
                     startIcon={<FormIcon />}
                     onClick={handleGoToForm}
-                    sx={{ 
-                      borderRadius: 2,
-                      px: 4,
-                      py: 1.5
-                    }}
+                    sx={{ borderRadius: 2 }}
                   >
-                    New Customer - Apply Now
+                    New Customer - Start Application
                   </Button>
-                  <Button
-                    variant="outlined"
-                    size="large"
-                    startIcon={<UploadIcon />}
-                    onClick={handleOpenExisting}
-                    sx={{ 
-                      borderRadius: 2,
-                      px: 4,
-                      py: 1.5
-                    }}
+                  <IconButton 
+                    onClick={() => setInitialOptionsUsed(true)}
+                    color="error"
+                    sx={{ p: 1 }}
                   >
-                    Existing Customer - Enter Token
-                  </Button>
+                    <CloseIcon />
+                  </IconButton>
                 </Box>
               )}
 
               {/* Upload Documents Button */}
-              {showUploadButton && (
-                <Box sx={{ mb: 3 }}>
+              {showUploadButton && !dismissedButtons.upload && (
+                <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Button
                     variant="contained"
                     color="secondary"
@@ -275,6 +269,13 @@ const ChatInterface: React.FC = () => {
                   >
                     Upload Documents
                   </Button>
+                  <IconButton 
+                    onClick={() => setDismissedButtons({ ...dismissedButtons, upload: true })}
+                    color="error"
+                    sx={{ p: 1 }}
+                  >
+                    <CloseIcon />
+                  </IconButton>
                 </Box>
               )}
 
