@@ -77,14 +77,14 @@ class PropertyValuationAgent:
             
             # Prepare property data for prediction
             property_data = {
-                'city': str(property_details.get('city', '')),
-                'area': str(property_details.get('area', '')),
-                'property_type': str(property_details.get('property_type', '')),
-                'size_sqft': float(property_details.get('size_sqft', 0)),
-                'age_years': int(property_details.get('age_years', 0)),
-                'floor_number': int(property_details.get('floor_number', 0)),
-                'condition': str(property_details.get('condition', '')),
-                'amenities': str(property_details.get('amenities', ''))
+                'city': str(property_details.get('city', 'rjy')),
+                'area': str(property_details.get('area', 'rjy')),
+                'property_type': str(property_details.get('property_type', 'good')),
+                'size_sqft': float(property_details.get('size_sqft', 1000)),
+                'age_years': int(property_details.get('age_years', 10)),
+                'floor_number': int(property_details.get('floor_number', 2)),
+                'condition': str(property_details.get('condition', 'good')),
+                'amenities': str(property_details.get('amenities', 'gym'))
             }
             
             print(f"📊 Property Data Prepared for Prediction:")
@@ -137,12 +137,12 @@ class PropertyValuationAgent:
             
             # Convert raw form data to property_details structure
             property_details = {
-                'size_sqft': float(application_data.get('property_size_sqft', 0)),
-                'property_type': application_data.get('property_type', ''),
-                'city': application_data.get('property_location_city', ''),
-                'area': application_data.get('property_location_area', ''),
-                'age_years': int(application_data.get('property_age_years', 0)),
-                'condition': application_data.get('property_condition', ''),
+                'size_sqft': float(application_data.get('property_size_sqft', 1000)),
+                'property_type': application_data.get('property_type', 'good'),
+                'city': application_data.get('property_location_city', 'rjy'),
+                'area': application_data.get('property_location_area', 'rjy'),
+                'age_years': int(application_data.get('property_age_years', 10)),
+                'condition': application_data.get('property_condition', 'good'),
                 'amenities': application_data.get('amenities', '')
             }
             
