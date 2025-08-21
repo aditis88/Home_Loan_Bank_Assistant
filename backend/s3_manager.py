@@ -8,6 +8,7 @@ from typing import Dict, Any, List, Optional
 import json
 import botocore
 import uuid
+import logging
 
 # Updated LangChain imports
 from langchain_aws import ChatBedrock
@@ -16,6 +17,10 @@ from langchain.memory import ConversationBufferWindowMemory
 from langchain.chains import ConversationChain
 from langchain.prompts import PromptTemplate
 LANGCHAIN_AVAILABLE = True
+
+# Use uvicorn's logger so backend logs are visible
+logger = logging.getLogger("uvicorn.error")
+
 # S3 Configuration
 S3_BUCKET_NAME = "sarma-1"
 S3_PREFIX = "customers_data/"
@@ -63,7 +68,7 @@ class S3ApplicationManager:
             )
             return True
         except Exception as e:
-            st.error(f"Failed to create folder in S3: {str(e)}")
+            logger.error(f"Failed to create folder in S3: {str(e)}")
             return False
     
     def save_application(self, token: str, application_data: dict):
@@ -84,7 +89,28 @@ class S3ApplicationManager:
             )
             return True
         except Exception as e:
-            st.error(f"Failed to save application to S3: {str(e)}")
+            logger.error(f"Failed to save application to S3: {str(e)}")
+            return False
+    
+    def save_results(self, token: str, results_data: dict) -> bool:
+        """Save processing results JSON under {prefix}{token}/{token}_results.json"""
+        try:
+            clean_token_val = clean_token(token)
+            
+            # Ensure the folder exists
+            if not self.ensure_folder_exists(clean_token_val):
+                return False
+            
+            key = f"{S3_PREFIX}{clean_token_val}/{clean_token_val}_results.json"
+            self.s3.put_object(
+                Bucket=S3_BUCKET_NAME,
+                Key=key,
+                Body=json.dumps(results_data, default=str, indent=2),
+                ContentType='application/json'
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save results to S3: {str(e)}")
             return False
     
     def get_application(self, token: str) -> Optional[dict]:
@@ -99,10 +125,27 @@ class S3ApplicationManager:
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] == 'NoSuchKey':
                 return None
-            st.error(f"Error retrieving application: {str(e)}")
+            logger.error(f"Error retrieving application: {str(e)}")
             return None
         except Exception as e:
-            st.error(f"Unexpected error: {str(e)}")
+            logger.error(f"Unexpected error: {str(e)}")
+            return None
+    def get_reults(self, token: str) -> Optional[dict]:
+        try:
+            clean_token_val = clean_token(token)
+            if not clean_token_val:
+                return None
+                
+            key = f"{S3_PREFIX}{clean_token_val}/{clean_token_val}_results.json"
+            response = self.s3.get_object(Bucket=S3_BUCKET_NAME, Key=key)
+            return json.loads(response['Body'].read().decode('utf-8'))
+        except botocore.exceptions.ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchKey':
+                return None
+            logger.error(f"Error retrieving application: {str(e)}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error: {str(e)}")
             return None
     
     def update_application(self, token: str, updated_data: dict):
@@ -116,7 +159,7 @@ class S3ApplicationManager:
             existing_data['last_updated'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             return self.save_application(clean_token_val, existing_data)
         except Exception as e:
-            st.error(f"Failed to update application in S3: {str(e)}")
+            logger.error(f"Failed to update application in S3: {str(e)}")
             return False
     
     def delete_application(self, token: str) -> bool:
@@ -140,7 +183,7 @@ class S3ApplicationManager:
             
             return True
         except Exception as e:
-            st.error(f"Failed to delete application from S3: {str(e)}")
+            logger.error(f"Failed to delete application from S3: {str(e)}")
             return False
     
     def list_applications(self) -> list:
@@ -153,7 +196,7 @@ class S3ApplicationManager:
                    for obj in response.get('Contents', []) 
                    if obj['Key'].endswith('.json')]
         except Exception as e:
-            st.error(f"Failed to list applications from S3: {str(e)}")
+            logger.error(f"Failed to list applications from S3: {str(e)}")
             return []
     def upload_document(self, token: str, file_obj, doc_type: str) -> str:
         """
@@ -212,7 +255,7 @@ class S3ApplicationManager:
             return f"s3://{S3_BUCKET_NAME}/{file_key}"
             
         except Exception as e:
-            st.error(f"Failed to upload document: {str(e)}")
+            logger.error(f"Failed to upload document: {str(e)}")
             raise  # Re-raise to handle in calling code
     def list_documents(self, token: str) -> list:
         """List all documents with full S3 paths"""
@@ -232,7 +275,7 @@ class S3ApplicationManager:
                 'last_modified': obj['LastModified']
             } for obj in response.get('Contents', []) if obj['Key'] != prefix]
         except Exception as e:
-            st.error(f"Failed to list documents: {str(e)}")
+            logger.error(f"Failed to list documents: {str(e)}")
             return []
     
     def _get_content_type(self, file_ext: str) -> str:
@@ -280,7 +323,7 @@ class S3ApplicationManager:
                 
             return documents
         except Exception as e:
-            st.error(f"Failed to list documents: {str(e)}")
+            logger.error(f"Failed to list documents: {str(e)}")
             return []
     def delete_document(self, token: str, filename: str) -> None:
         """
@@ -298,5 +341,5 @@ class S3ApplicationManager:
                 Key=file_key
             )
         except Exception as e:
-            print(f"Failed to delete document {filename}: {str(e)}")
+            logger.error(f"Failed to delete document {filename}: {str(e)}")
             raise

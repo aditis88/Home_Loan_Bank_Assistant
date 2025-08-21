@@ -6,6 +6,7 @@ from agent.property_valuation_agent import PropertyValuationAgent
 from agent.eligibility_agent import EligibilityAgent, eligibility_node
 from agent.loan_recommender_agent import loan_recommender_node
 from graphviz import Digraph
+from  s3_manager import S3ApplicationManager
 
 class WorkflowState(TypedDict):
     applicant_data: Dict[str, Any]
@@ -105,8 +106,9 @@ class HomeLoanOrchestrator:
             )
             
             if "applicant_data" in state:
-                app_name = state["applicant_data"].get("applicant_name", "").upper()
-                doc_name = result.get("data", {}).get("applicant_name", "").upper()
+                # Cast to str before upper() to avoid NoneType errors
+                app_name = str(state["applicant_data"].get("applicant_name") or "").upper()
+                doc_name = str(result.get("data", {}).get("applicant_name") or "").upper()
                 if app_name and doc_name and app_name != doc_name:
                     result.setdefault("validation_report", {}).setdefault("checks", []).append({
                         "check": "Name Match",
@@ -287,8 +289,9 @@ class HomeLoanOrchestrator:
         
         try:
             final_state = self.app.invoke(initial_state)
-            
-            return {
+            token=applicant_data.get("application_id")
+            print("token",token)
+            result= {
                 "status": final_state["workflow_status"],
                 "results": {
                     "document_validation": final_state["document_validation_result"],
@@ -299,6 +302,18 @@ class HomeLoanOrchestrator:
                 },
                 "errors": final_state.get("errors", [])
             }
+            # Save results JSON to S3 if token provided
+            if token:
+                try:
+                    s3 = S3ApplicationManager()
+                    saved = s3.save_results(token, result)
+                    if not saved:
+                        self.logger.error(f"Results not saved for {token}: save_results returned False")
+                    else:
+                        self.logger.info(f"Results saved to S3 for {token} in run_workflow")
+                except Exception as e:
+                    self.logger.exception(f"Exception while saving results for {token}: {e}")
+            return result
         except Exception as e:
             return {
                 "status": "error",

@@ -74,7 +74,7 @@ class DocumentValidatorAgent:
         Returns standardized response structure
         """
         print('Hi',application_data)
-      
+     
     
         if "documents" not in application_data or not application_data["documents"]:
             return {
@@ -158,7 +158,8 @@ class DocumentValidatorAgent:
     def _validate_aadhaar_card(self, blocks: List[Dict[str, Any]], details: Dict[str, Any]) -> Dict[str, Any]:
         """Extracts details from an Aadhaar card."""
         applicant_name = details.get("applicant_name")
-        name = _find_text_with_regex(blocks, r'\b{}\b'.format(applicant_name)).upper()
+        name_match = _find_text_with_regex(blocks, r'\b{}\b'.format(applicant_name)) if applicant_name else None
+        name = name_match.upper() if name_match else (applicant_name.upper() if applicant_name else None)
         dob = _find_text_with_regex(blocks, r'\d{2}/\d{2}/\d{4}')
         return {"name": name, "date_of_birth": dob}
 
@@ -166,8 +167,10 @@ class DocumentValidatorAgent:
         """Extracts details from a Company ID card."""
         applicant_name = details.get("applicant_name")
         company_name = details.get("company_name")
-        name = _find_text_with_regex(blocks, r'\b{}\b'.format(applicant_name)).upper()
-        company = _find_text_with_regex(blocks, r'\b{}\b'.format(company_name))
+        name_match = _find_text_with_regex(blocks, r'\b{}\b'.format(applicant_name)) if applicant_name else None
+        name = name_match.upper() if name_match else (applicant_name.upper() if applicant_name else None)
+        company_match = _find_text_with_regex(blocks, r'\b{}\b'.format(company_name)) if company_name else None
+        company = company_match if company_match else company_name
         valid_until_str = _find_text_with_regex(blocks, r'Valid upto: \d{2}- Sep')
         valid_year = _find_text_with_regex(blocks, r'2029')
         is_valid = False
@@ -261,7 +264,8 @@ class DocumentValidatorAgent:
 
         # --- Consistency Checks ---
         validation_report = {"overall_status": "Success", "checks": []}
-        all_names = {data.get('name').upper() for data in extracted_data.values() if data.get('name')}
+        # Cast to str before upper() to avoid errors if name is not a string
+        all_names = {str(data.get('name')).upper() for data in extracted_data.values() if data.get('name')}
         all_pans = {data.get('pan_number') for data in extracted_data.values() if data.get('pan_number')}
 
         # Check 1: Name Consistency
