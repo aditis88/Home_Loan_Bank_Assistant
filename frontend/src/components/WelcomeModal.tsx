@@ -18,9 +18,10 @@ import {
 } from '@mui/material';
 import {
   Close as CloseIcon,
-  Home as HomeIcon,
+  AccountBalance as BankIcon,
   Person as PersonIcon,
   Business as BusinessIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import { useAppStore } from '../store/appStore';
 
@@ -33,13 +34,13 @@ const WelcomeModal: React.FC = () => {
     setSessionId,
   } = useAppStore();
 
-  const [selection, setSelection] = useState<'existing' | 'new' | null>(null);
-  const [token, setToken] = useState('');
-  const [tokenError, setTokenError] = useState('');
+  const [selection, setSelection] = useState<'customer' | 'portfolio' | null>(null);
+  const [tokenId, setTokenId] = useState('');
+  const [tokenIdError, setTokenIdError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [hasSeenModal, setHasSeenModal] = useState(false);
   
-  const tokenInputRef = useRef<HTMLInputElement>(null);
+  const tokenIdInputRef = useRef<HTMLInputElement>(null);
 
   // Check if user has seen the modal before
   useEffect(() => {
@@ -50,21 +51,21 @@ const WelcomeModal: React.FC = () => {
     }
   }, [setShowWelcomeModal]);
 
-  // Auto-focus token input when existing customer is selected
+  // Auto-focus token ID input when customer search is selected
   useEffect(() => {
-    if (selection === 'existing' && tokenInputRef.current) {
-      setTimeout(() => tokenInputRef.current?.focus(), 100);
+    if (selection === 'customer' && tokenIdInputRef.current) {
+      setTimeout(() => tokenIdInputRef.current?.focus(), 100);
     }
   }, [selection]);
 
-  // Token validation
-  const validateToken = (token: string): boolean => {
-    const tokenPattern = /^HL\d{13}$/;
-    if (!tokenPattern.test(token)) {
-      setTokenError('Token must be in format: HL followed by 13 digits');
+  // Token ID validation
+  const validateTokenId = (id: string): boolean => {
+    const idPattern = /^HL\d{13}$/;
+    if (!idPattern.test(id)) {
+      setTokenIdError('Token must be in format: HL followed by 13 digits');
       return false;
     }
-    setTokenError('');
+    setTokenIdError('');
     return true;
   };
 
@@ -80,18 +81,18 @@ const WelcomeModal: React.FC = () => {
   };
 
   const handleContinue = async () => {
-    if (selection === 'existing') {
-      if (!validateToken(token)) return;
+    if (selection === 'customer') {
+      if (!validateTokenId(tokenId)) return;
       
       setIsLoading(true);
-      // Simulate token validation (replace with actual API call)
+      // Simulate token lookup (replace with actual API call)
       await new Promise(resolve => setTimeout(resolve, 1000));
       setIsLoading(false);
       
       setCustomerType('existing');
-      setSessionId(token.trim());
+      setSessionId(tokenId.trim());
       setCurrentView('chat');
-    } else if (selection === 'new') {
+    } else if (selection === 'portfolio') {
       setCustomerType('new');
       setCurrentView('application');
     }
@@ -100,13 +101,13 @@ const WelcomeModal: React.FC = () => {
     setShowWelcomeModal(false);
   };
 
-  const handleTokenChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTokenIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.toUpperCase();
-    setToken(value);
-    if (tokenError) validateToken(value);
+    setTokenId(value);
+    if (tokenIdError) validateTokenId(value);
   };
 
-  const isContinueDisabled = selection === null || (selection === 'existing' && !token.trim()) || isLoading;
+  const isContinueDisabled = selection === null || (selection === 'customer' && !tokenId.trim()) || isLoading;
 
   if (hasSeenModal) return null;
 
@@ -133,8 +134,8 @@ const WelcomeModal: React.FC = () => {
         borderRadius: '12px 12px 0 0'
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <HomeIcon />
-          <Typography variant="h6">Welcome to Home Loan Assistant</Typography>
+          <BankIcon />
+          <Typography variant="h6">Welcome to Loan Management System</Typography>
         </Box>
         <IconButton onClick={handleClose} sx={{ color: 'white' }}>
           <CloseIcon />
@@ -143,20 +144,20 @@ const WelcomeModal: React.FC = () => {
       
       <DialogContent sx={{ pt: 3 }}>
         <Typography variant="body1" sx={{ mb: 3, textAlign: 'center', color: 'text.secondary' }}>
-          To provide you with the best experience, please let us know how we can help you today.
+          How would you like to access the loan management system today?
         </Typography>
         
         <Box sx={{ mb: 3 }}>
           <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
-            Are you an existing customer or starting fresh?
+            Choose your access method:
           </Typography>
           <ToggleButtonGroup
             value={selection}
             exclusive
             onChange={(_, val) => {
               setSelection(val);
-              setToken('');
-              setTokenError('');
+              setTokenId('');
+              setTokenIdError('');
             }}
             fullWidth
             sx={{
@@ -176,28 +177,28 @@ const WelcomeModal: React.FC = () => {
               }
             }}
           >
-            <ToggleButton value="new">
+            <ToggleButton value="customer">
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                <PersonIcon />
-                <Typography variant="body2">New Customer</Typography>
+                <SearchIcon />
+                <Typography variant="body2">Loan Token Search</Typography>
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  Start your application
+                  Look up specific application
                 </Typography>
               </Box>
             </ToggleButton>
-            <ToggleButton value="existing">
+            <ToggleButton value="portfolio">
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
                 <BusinessIcon />
-                <Typography variant="body2">Existing Customer</Typography>
+                <Typography variant="body2">Portfolio Overview</Typography>
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  Continue with token
+                  View all applications
                 </Typography>
               </Box>
             </ToggleButton>
           </ToggleButtonGroup>
         </Box>
 
-        {selection === 'existing' && (
+        {selection === 'customer' && (
           <Box sx={{ 
             p: 2, 
             backgroundColor: '#f8f9fa', 
@@ -205,43 +206,41 @@ const WelcomeModal: React.FC = () => {
             border: '1px solid #e9ecef' 
           }}>
             <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: '#1976d2' }}>
-              <BusinessIcon sx={{ mr: 1, fontSize: 20 }} />
-              Retrieve Your Application
+              <SearchIcon sx={{ mr: 1, fontSize: 20 }} />
+              Loan Application Lookup
             </Typography>
             <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-              Enter your application token to access your existing application and continue where you left off.
+              Enter a loan token to access the application details and documents.
             </Typography>
             <TextField
               fullWidth
               placeholder="HL1234567890123"
-              value={token}
-              onChange={handleTokenChange}
-              inputRef={tokenInputRef}
-              error={!!tokenError}
-              helperText={tokenError || "Format: HL followed by 13 digits"}
+              value={tokenId}
+              onChange={handleTokenIdChange}
+              inputRef={tokenIdInputRef}
+              error={!!tokenIdError}
+              helperText={tokenIdError || "Format: HL followed by 13 digits"}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 2,
-                  '&.Mui-focused': {
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#1976d2',
-                    }
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#1976d2',
                   }
                 }
               }}
             />
-            {token && !tokenError && (
+            {tokenId && !tokenIdError && (
               <Chip 
                 label="Valid token format" 
                 color="success" 
                 size="small" 
-                sx={{ mt: 1 }}
+                sx={{ mt: 1 }} 
               />
             )}
           </Box>
         )}
 
-        {selection === 'new' && (
+        {selection === 'portfolio' && (
           <Box sx={{ 
             p: 2, 
             backgroundColor: '#e8f5e8', 
@@ -249,11 +248,11 @@ const WelcomeModal: React.FC = () => {
             border: '1px solid #c8e6c9' 
           }}>
             <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#2e7d32' }}>
-              <PersonIcon sx={{ mr: 1, fontSize: 20 }} />
-              New Application Process
+              <BusinessIcon sx={{ mr: 1, fontSize: 20 }} />
+              Portfolio Management
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              We'll guide you through the complete home loan application process step by step.
+              Access the complete loan portfolio overview, analytics, and management tools.
             </Typography>
           </Box>
         )}
