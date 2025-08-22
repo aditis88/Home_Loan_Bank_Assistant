@@ -7,6 +7,7 @@ import os
 import tempfile
 import json
 from datetime import datetime
+import logging
 import re
 import io
 
@@ -17,6 +18,9 @@ from chatbot import HomeLoanChatbot
 from utils import *
 
 app = FastAPI(title="Home Loan Assistant API", version="1.0.0")
+
+# Use uvicorn's logger so messages appear in server console
+logger = logging.getLogger("uvicorn.error")
 
 # CORS middleware
 app.add_middleware(
@@ -381,7 +385,7 @@ async def process_application(
 ):
     """Process application with step-by-step workflow"""
     try:
-        print(f"Processing application {application_id} for session {session_id}")
+        logger.info(f"Processing application {application_id} for session {session_id}")
         # 1. Validate application exists
         application_form = s3_manager.get_application(application_id)
         if not application_form:
@@ -400,6 +404,7 @@ async def process_application(
         
         # 3. Prepare data for orchestrator
         applicant_data = {
+            "application_id": application_id,
             "applicant_name": application_form.get("full_name"),
             "loan_amount": float(application_form.get("required_loan_amount", 0)),
             "monthly_income": float(application_form.get("monthly_income", 0)),
@@ -417,13 +422,25 @@ async def process_application(
             "pan_number": application_form.get("pan_number"),
             "aadhar_number": application_form.get("aadhar_number")
         }
-        print("data#$%$#%%",applicant_data,document_paths)
+        logger.info(f"Applicant data prepared for {application_id}")
         # 4. Run orchestrator workflow
         result = orchestrator.run_workflow(applicant_data, document_paths)
+        logger.info(f"Workflow completed for {application_id}")
+        # Persist results JSON to S3 under {token}/{token}_results.json
+        try:
+            saved = s3_manager.save_results(application_id, result)
+            if not saved:
+                logger.error(f"Results not saved for {application_id}: save_results returned False")
+            else:
+                logger.info(f"Results saved to S3 for {application_id}")
+        except Exception as e:
+            # Do not fail processing if S3 persistence fails
+            logger.exception(f"Exception while saving results for {application_id}: {e}")
         
         # 5. Update session and return results
         if session_id in sessions:
             sessions[session_id]["application_status"] = "processed"
+            print("result",result)
             sessions[session_id]["processing_result"] = result
             
         return {
